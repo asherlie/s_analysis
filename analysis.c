@@ -3,6 +3,28 @@
 #include <string.h>
 #include <limits.h>
 
+enum etype {s = 0, i, f, unknown};
+
+struct csv_entry{
+    union {
+        char* str;
+        int i;
+        float f;
+    }data;
+};
+
+struct csv_column{
+    char* label;
+    enum etype type;
+    int n_entries, entry_cap;
+    struct csv_entry* entries;
+};
+
+struct csv{
+    int n_columns;
+    struct csv_column* columns;
+};
+
 char** read_csv_fields(FILE* fp, int* n_fields){
     char* ln = NULL;
     size_t sz;
@@ -32,28 +54,6 @@ char** read_csv_fields(FILE* fp, int* n_fields){
     }
     return ret;
 }
-
-enum etype {s = 0, i, f, unknown};
-
-struct csv_entry{
-    union {
-        char* str;
-        int i;
-        float f;
-    }data;
-};
-
-struct csv_column{
-    char* label;
-    enum etype type;
-    int n_entries, entry_cap;
-    struct csv_entry* entries;
-};
-
-struct csv{
-    int n_columns;
-    struct csv_column* columns;
-};
 
 /*
  * values are considered integers if they can be converted to int without problem
@@ -170,6 +170,12 @@ struct csv_entry* csv_lookup(struct csv* c, char* field, int idx){
     }
     return NULL;
 }
+
+/*
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *  buy strategy analysis below
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ */
 
 struct portfolio{
     int shares;
