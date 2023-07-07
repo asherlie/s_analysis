@@ -30,7 +30,6 @@ char** read_csv_fields(FILE* fp, int* n_fields){
         ret[(*n_fields)++] = strdup(startptr);
         cursor = startptr = cursor+1;
     }
-    /*fclose(fp);*/
     return ret;
 }
 
@@ -268,6 +267,28 @@ struct strategy{
     int shares_per_purchase;
 };
 
+char* strat_to_txt(struct strategy* s){
+    char* ret = calloc(100, 1);
+    char* cursor = ret;
+    cursor += sprintf(cursor, "buy ");
+
+    if(s->buy_nearest_dollar_amt)
+        cursor += sprintf(cursor, "all shares possible with $%f", s->dollars_per_purchase);
+    else cursor += sprintf(cursor, "%i shares", s->shares_per_purchase);
+
+    cursor += sprintf(cursor, " every ");
+    if(s->freq == each_n_days)cursor += sprintf(cursor, "%i days", s->n_days);
+    else cursor += sprintf(cursor, "day");
+
+    if(s->trig == indiscriminant)cursor += sprintf(cursor, " indiscriminantly");
+    else{
+        cursor += sprintf(cursor, " when red");
+        if(s->trig == red_over_pct)cursor += sprintf(cursor, " over %f%%", s->red_pct);
+        if(s->trig == after_n_reds)cursor += sprintf(cursor, " for greater than %i days", s->n_days);
+    }
+    return ret;
+}
+
 /* computes the percentage inc/dec from row_a[field_a] -> row_b[field_b]
  * for ex. 1993-02-03['Close'] -> 1993-02-04['Open']
  */
@@ -329,6 +350,10 @@ void p_portfolio(struct portfolio* p, float cur_price){
 }
 
 // TODO: generate reports and experiment with all different permutations of strategy
+// TODO: strat_to_txt()
+// TODO: write a list of strategies along with their dollars earned to a file
+// so we can compare strategies
+//
 /*TODO: experiment with previous day's volume*/
 int main(){
     /*printf("%i\n", (int)(100./3.));*/
@@ -343,16 +368,18 @@ int main(){
     printf("loaded csv with dimensions (%i, %i)\n", c.n_columns, c.columns->n_entries);
 
     s.freq = each_n_days;
-    s.trig = red;
-    s.n_days = 5;
+    s.trig = indiscriminant;
+    s.n_days = 20;
 
-    s.buy_nearest_dollar_amt = 1;
-    s.dollars_per_purchase = 500.;
+    s.buy_nearest_dollar_amt = 0;
+    /*s.dollars_per_purchase = 1000.;*/
+    s.shares_per_purchase = 2;
 
     run_buy_strategy(&c, &p, &s);
 
     cur_price = csv_lookup(&c, "Open", c.columns->n_entries-1)->data.f;
     p_portfolio(&p, cur_price);
+    puts(strat_to_txt(&s));
     /*printf("dollars earned: %f\n", p.shares*cur_price);*/
     return EXIT_SUCCESS;
 }
