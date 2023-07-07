@@ -74,7 +74,6 @@ enum etype which_etype(char* raw, int* iret, float* fret){
 }
 
 _Bool set_csv_entry(struct csv* c, int column_idx, char* raw){
-    /* which_etype() used just for conversion here  */
     int iv;
     float fv;
     struct csv_entry* e;
@@ -123,7 +122,6 @@ void set_csv_types(struct csv* c, char** first_row){
     float fv;
     for(int i = 0; i < c->n_columns; ++i){
         c->columns[i].type = which_etype(first_row[i], &iv, &fv);
-        /*set_csv_entry(c->columns[i].type, c->columns[i].entries, first_row[i]);*/
         set_csv_entry(c, i, first_row[i]);
     }
 }
@@ -138,15 +136,10 @@ void parse_csv(FILE* fp, struct csv* c){
     fields = read_csv_fields(fp, &nf);
     set_csv_types(c, fields);
     while((fields = read_csv_fields(fp, &nf))){
-        /*if(rownum == c->columns)*/
-        /*printf("%i\n", nf);*/
-        // last line is reported as having 6 fields
         for(int i = 0; i < c->n_columns; ++i){
             set_csv_entry(c, i, fields[i]);
         }
-        /*puts(fields[0]);*/
     }
-    /*while()*/
 }
 
 void load_csv(char* fn, struct csv* c){
@@ -178,36 +171,6 @@ struct csv_entry* csv_lookup(struct csv* c, char* field, int idx){
     return NULL;
 }
 
-// all this really needs to do is return the correct type depending on type
-// should be easy to write into a macro
-// what's harder/impossible but would be awesome would be to defint a function to access each field programmatically
-/*#define func(x, y) */
-
-/*csvs should be represented as n separate lists, since all columns have the same number of elements*/
-
-// generates a csv_entry struct
-/*
- * #define csv_struct_builder(name, csv_fn, defstr) struct csv_##name{ \
- * defstr \
- * };
-*/
-/*file is taken in, a list of fields is read into an array of the perfect size*/
-/*csv_struct_builder() is then called with sizeof(arr) and variable args*/
-
-
-/*struct csv_entry*/
-/*struct csv_data{*/
-    
-/*};*/
-
-/*
- * this should be a generator that creates a struct with the relevant fields - date, open, wtvr
- * it raesd in first line of csv and creates a new struct!
-*/
-
-/*csv_struct_builder(another, "spy.csv", getfields("SPY.csv"))*/
-/*struct csv_another xx = {.x = 33};*/
-
 struct portfolio{
     int shares;
     float cost;
@@ -227,11 +190,6 @@ struct strategy{
     int n_red;
     float red_pct;
     int n_days;
-
-    /*_Bool buy_each_red_day;*/
-    /*int buy_after_n_red_days;*/
-    /*_Bool buy_each_week_indiscriminantly;*/
-    /*int8_t buy_on_dow;*/
     _Bool buy_nearest_dollar_amt;
     float dollars_per_purchase;
     int shares_per_purchase;
@@ -293,14 +251,11 @@ void run_buy_strategy(struct csv* c, struct portfolio* p, const struct strategy*
         price = csv_lookup(c, "Open", row)->data.f;
         d = process_delta(c, row-1, row, "Close", "Open");
         pc = d.pct_change;
-        /*printf("%f\n", pc);*/
         if(pc < 0.)++red_streak;
         else red_streak = 0;
-        /*printf("rs %i\n", red_streak);*/
         if(s->freq == each_day || (s->freq == each_n_days && s->n_days <= days_since_purchase)){
             if(s->trig == indiscriminant || (s->trig == red && pc < 0) || (s->trig == red_over_pct && pc < s->red_pct) ||
               (s->trig == after_n_reds && red_streak >= s->n_red)){
-                // maybe bake this logic into buy()
                 if(s->buy_nearest_dollar_amt)
                     shares = (int)s->dollars_per_purchase/price;
                 else shares = s->shares_per_purchase;
@@ -309,8 +264,6 @@ void run_buy_strategy(struct csv* c, struct portfolio* p, const struct strategy*
 
         if(buy(p, shares, price))days_since_purchase = 0;
         else ++days_since_purchase;
-        /*d = process_delta(c, row-1, row, "Close", "Close");*/
-        /*printf("%s->%s: %.4f\n", csv_lookup(c, "Date", row-1)->data.str, csv_lookup(c, "Date", row)->data.str, d.pct_change);*/
     }
 }
 
@@ -320,14 +273,11 @@ void p_portfolio(struct portfolio* p, float cur_price){
 }
 
 // TODO: generate reports and experiment with all different permutations of strategy
-// TODO: strat_to_txt()
 // TODO: write a list of strategies along with their dollars earned to a file
 // so we can compare strategies
 //
 /*TODO: experiment with previous day's volume*/
 int main(){
-    /*printf("%i\n", (int)(100./3.));*/
-    /*which_etype("23434");*/
     struct csv c;
     struct strategy s = {0};
     struct portfolio p;
@@ -348,8 +298,8 @@ int main(){
     run_buy_strategy(&c, &p, &s);
 
     cur_price = csv_lookup(&c, "Open", c.columns->n_entries-1)->data.f;
+
     p_portfolio(&p, cur_price);
     puts(strat_to_txt(&s));
-    /*printf("dollars earned: %f\n", p.shares*cur_price);*/
     return EXIT_SUCCESS;
 }
