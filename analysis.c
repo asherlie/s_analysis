@@ -254,7 +254,7 @@ struct strategy{
     _Bool buy_each_week_indiscriminantly;
     int8_t buy_on_dow;
     _Bool buy_nearest_dollar_amt;
-    int dollars_per_purchase;
+    float dollars_per_purchase;
     int shares_per_purchase;
 };
 
@@ -280,20 +280,27 @@ void buy(struct portfolio* p, int shares, int price){
 void run_buy_strategy(struct csv* c, struct portfolio* p, const struct strategy* s){
     struct deltainf d;
     int streak = 0;
-    int shares;
+    int pc;
+    int shares, price;
 
     for(int row = 1; row < c->columns->n_entries; ++row){
         shares = 0;
+        price = csv_lookup(c, "Open", row)->data.f;
         d = process_delta(c, row-1, row, "Close", "Open");
         pc = d.pct_change;
-        if(pc < 0 && s->buy_each_red_day)
+        if(pc < 0 && s->buy_each_red_day){
+            if(s->buy_nearest_dollar_amt)
+                shares = s->dollars_per_purchase/price;
+        }
+        buy(p, shares, price);
         /*d = process_delta(c, row-1, row, "Close", "Close");*/
-        printf("%s->%s: %.4f\n", csv_lookup(c, "Date", row-1)->data.str, csv_lookup(c, "Date", row)->data.str, d.pct_change);
+        /*printf("%s->%s: %.4f\n", csv_lookup(c, "Date", row-1)->data.str, csv_lookup(c, "Date", row)->data.str, d.pct_change);*/
     }
 }
 
 /*TODO: experiment with previous day's volume*/
 int main(){
+    printf("%i\n", 10000);
     /*which_etype("23434");*/
     struct csv c;
     struct strategy s = {0};
@@ -303,6 +310,8 @@ int main(){
     printf("loaded csv with dimensions (%i, %i)\n", c.n_columns, c.columns->n_entries);
 
     s.buy_each_red_day = 1;
+    s.buy_nearest_dollar_amt = 1;
+    s.dollars_per_purchase = 1000.;
 
     run_buy_strategy(&c, &p, &s);
     return EXIT_SUCCESS;
