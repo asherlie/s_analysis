@@ -1,7 +1,7 @@
 #include <stdio.h>
-#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 char** read_csv_fields(FILE* fp, int* n_fields){
     char* ln = NULL;
@@ -33,30 +33,8 @@ char** read_csv_fields(FILE* fp, int* n_fields){
     return ret;
 }
 
-char* getfields(FILE* fp){
-    int nf;
-    char* ret, * cursor;
-    char** fields = read_csv_fields(fp, &nf);
-
-    cursor = ret = calloc(nf, 20);
-    for(int i = 0; i < nf; ++i){
-        cursor += sprintf(cursor, "char* %s; ", fields[i]);
-        /*strcpy();*/
-        /*strcat*/
-    }
-    puts(ret);
-    return ret;
-}
-
-/*
- * csvs are represented with separate lists - one for each column
- * each column can contain either char*, int, or float
-*/
-/*in htis case we need 7*3 lists only 7 will be used but we need to give an option of datatype*/
-
 enum etype {s = 0, i, f, unknown};
 
-/*should make a separate struct maybe and within it a list*/
 struct csv_entry{
     union {
         char* str;
@@ -92,16 +70,9 @@ enum etype which_etype(char* raw, int* iret, float* fret){
     if(*invalid == 0){
         return f;
     }
-    /*printf("%p %i\n", invalid, *invalid);*/
-    /*if(invalid != 0*/
-    /*if(strchr(raw, '.'))return f;*/
     return s;
 }
 
-// TODO: don't use which_etype() here
-/*_Bool set_csv_entry(enum etype expected, struct csv_entry* e, char* raw){*/
-/*_Bool set_csv_entry(struct csv* c, int column_idx, enum etype expected, char* raw){*/
-// TODO: resize as needed
 _Bool set_csv_entry(struct csv* c, int column_idx, char* raw){
     /* which_etype() used just for conversion here  */
     int iv;
@@ -114,7 +85,6 @@ _Bool set_csv_entry(struct csv* c, int column_idx, char* raw){
             c->columns[i].entry_cap *= 2;
             c->columns[i].entries = realloc(c->columns[i].entries, sizeof(struct csv_entry)*c->columns[i].entry_cap);
         }
-        /*c->columns[column_idx].entries = realloc();*/
     }
 
     e = &c->columns[column_idx].entries[c->columns[column_idx].n_entries];
