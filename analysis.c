@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -248,11 +249,20 @@ struct deltainf{
     float pct_change;
 };
 
+enum trade_frequency {each_day = 0, each_n_days};
+enum trade_trigger {red = 0, red_over_pct, indiscriminant, after_n_reds};
+
 struct strategy{
-    _Bool buy_each_red_day;
-    int buy_after_n_red_days;
-    _Bool buy_each_week_indiscriminantly;
-    int8_t buy_on_dow;
+    enum trade_frequency freq;
+    enum trade_trigger trig;
+    int n_red;
+    float red_pct;
+    int n_days;
+
+    /*_Bool buy_each_red_day;*/
+    /*int buy_after_n_red_days;*/
+    /*_Bool buy_each_week_indiscriminantly;*/
+    /*int8_t buy_on_dow;*/
     _Bool buy_nearest_dollar_amt;
     float dollars_per_purchase;
     int shares_per_purchase;
@@ -272,35 +282,49 @@ struct deltainf process_delta(struct csv* c, int row_a, int row_b, char* field_a
     return ret;
 }
 
-void buy(struct portfolio* p, int shares, int price){
+_Bool buy(struct portfolio* p, int shares, float price){
     p->shares += shares;
     p->cost += price*shares;
+
+    return shares != 0;
 }
 
 void run_buy_strategy(struct csv* c, struct portfolio* p, const struct strategy* s){
     struct deltainf d;
-    int streak = 0;
+    int red_streak = 0;
     int pc;
-    int shares, price;
+    int shares;
+    float price;
+    int days_since_purchase = INT_MAX;
 
     for(int row = 1; row < c->columns->n_entries; ++row){
         shares = 0;
         price = csv_lookup(c, "Open", row)->data.f;
         d = process_delta(c, row-1, row, "Close", "Open");
         pc = d.pct_change;
-        if(pc < 0 && s->buy_each_red_day){
-            if(s->buy_nearest_dollar_amt)
-                shares = s->dollars_per_purchase/price;
+        if(pc < 0)++red_streak;
+        else red_streak = 0;
+        if(s->freq == each_day || (s->freq == each_n_days && s->n_days <= days_since_purchase)){
+            if(s->trig == indiscriminant || (s->trig == red && pc < 0) || (s->trig == red_over_pct && pc < s->red_pct) ||
+              (s->trig == after_n_reds && red_streak >= s->n_red)){
+                // maybe bake this logic into buy()
+                if(s->buy_nearest_dollar_amt)
+                    shares = (int)s->dollars_per_purchase/price;
+                else shares = s->shares_per_purchase;
+            }
         }
-        buy(p, shares, price);
+
+        if(buy(p, shares, price))days_since_purchase = 0;
+        else ++days_since_purchase;
         /*d = process_delta(c, row-1, row, "Close", "Close");*/
         /*printf("%s->%s: %.4f\n", csv_lookup(c, "Date", row-1)->data.str, csv_lookup(c, "Date", row)->data.str, d.pct_change);*/
     }
 }
 
+// TODO: generate reports and experiment with all different permutations of strategy
 /*TODO: experiment with previous day's volume*/
 int main(){
-    printf("%i\n", 10000);
+    /*printf("%i\n", (int)(100./3.));*/
     /*which_etype("23434");*/
     struct csv c;
     struct strategy s = {0};
@@ -309,10 +333,14 @@ int main(){
     load_csv("SPY.csv", &c);
     printf("loaded csv with dimensions (%i, %i)\n", c.n_columns, c.columns->n_entries);
 
-    s.buy_each_red_day = 1;
+    s.freq = each_n_days;
+    s.trig = red;
+    s.n_days = 5;
+
     s.buy_nearest_dollar_amt = 1;
-    s.dollars_per_purchase = 1000.;
+    s.dollars_per_purchase = 500.;
 
     run_buy_strategy(&c, &p, &s);
+    /*printf("dollars earned: %i\n", p.shares*);*/
     return EXIT_SUCCESS;
 }
