@@ -241,7 +241,7 @@ struct csv_entry* csv_lookup(struct csv* c, char* field, int idx){
 
 struct portfolio{
     int shares;
-    int cost;
+    float cost;
 };
 
 /* wrapping pct_change in deltainf in case more data is needed in the future */
@@ -295,15 +295,17 @@ void run_buy_strategy(struct csv* c, struct portfolio* p, const struct strategy*
     int pc;
     int shares;
     float price;
-    int days_since_purchase = INT_MAX;
+    int days_since_purchase = s->n_days;
 
     for(int row = 1; row < c->columns->n_entries; ++row){
         shares = 0;
         price = csv_lookup(c, "Open", row)->data.f;
         d = process_delta(c, row-1, row, "Close", "Open");
         pc = d.pct_change;
-        if(pc < 0)++red_streak;
+        /*printf("%f\n", pc);*/
+        if(pc < 0.)++red_streak;
         else red_streak = 0;
+        /*printf("rs %i\n", red_streak);*/
         if(s->freq == each_day || (s->freq == each_n_days && s->n_days <= days_since_purchase)){
             if(s->trig == indiscriminant || (s->trig == red && pc < 0) || (s->trig == red_over_pct && pc < s->red_pct) ||
               (s->trig == after_n_reds && red_streak >= s->n_red)){
@@ -321,6 +323,11 @@ void run_buy_strategy(struct csv* c, struct portfolio* p, const struct strategy*
     }
 }
 
+void p_portfolio(struct portfolio* p, float cur_price){
+    printf("%i shares purchased at $%f per share\ntotal $%f spent\n$%f earned\n", 
+        p->shares, p->cost/p->shares, p->cost, (cur_price*p->shares)-p->cost);
+}
+
 // TODO: generate reports and experiment with all different permutations of strategy
 /*TODO: experiment with previous day's volume*/
 int main(){
@@ -329,6 +336,8 @@ int main(){
     struct csv c;
     struct strategy s = {0};
     struct portfolio p;
+
+    float cur_price;
 
     load_csv("SPY.csv", &c);
     printf("loaded csv with dimensions (%i, %i)\n", c.n_columns, c.columns->n_entries);
@@ -341,6 +350,9 @@ int main(){
     s.dollars_per_purchase = 500.;
 
     run_buy_strategy(&c, &p, &s);
-    /*printf("dollars earned: %i\n", p.shares*);*/
+
+    cur_price = csv_lookup(&c, "Open", c.columns->n_entries-1)->data.f;
+    p_portfolio(&p, cur_price);
+    /*printf("dollars earned: %f\n", p.shares*cur_price);*/
     return EXIT_SUCCESS;
 }
